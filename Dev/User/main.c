@@ -77,7 +77,9 @@ void	GPIO_Config(void);
 int main(void)
 {
 	RCC_ClocksTypeDef RCC_Clocks;
-	uint32_t counter_1s = 0;
+	uint32_t counter_2s = 0;
+  uint32_t counter_200ms = 0;
+	uint32_t vibration_counter = 0;
 	uint32_t i = 0;
 
 	/* Systick Timer Config */
@@ -112,27 +114,6 @@ int main(void)
 			Xianfu_Pwm();                                             //===PWMÏÞ·ù
 //			printf("PWM after xianfu: %d \r\n", Moto1);
     	Set_Pwm(Moto1);  
-			
-//			if (++counter_20ms >= 2)
-//			{
-//				counter_20ms = 0;
-//				/* Control Servo 4 */
-//				if (CCR4_Count_up_flag)
-//				{
-//					if (CCR4_Val < 1000)
-//						CCR4_Val += 5;
-//					else
-//						CCR4_Count_up_flag = 0;
-//				}
-//				else
-//				{
-//					if (CCR4_Val > 200)
-//						CCR4_Val -= 5;
-//					else
-//						CCR4_Count_up_flag = 1;
-//				}
-//				TIM_SetCompare4(TIM3, CCR4_Val);
-//			}
 		}
 		if(status_50ms)
 		{
@@ -148,7 +129,7 @@ int main(void)
 						ir_pd_1_counter[i]++;
 				}
 				// Delay 100ms
-				else if (++ir_pd_1_counter[i] == 2)
+				else if (++ir_pd_1_counter[i] >= 3)
 				{
 					if (GPIO_ReadInputDataBit(GPIOA, GPIO_Pin_2 << i))
 						ir_pd_1_flag[i] = 1;
@@ -169,7 +150,7 @@ int main(void)
 						ir_pd_2_counter[i]++;
 				}
 				// Delay 100ms
-				else if (++ir_pd_2_counter[i] == 2)
+				else if (++ir_pd_2_counter[i] >= 3)
 				{
 					if (GPIO_ReadInputDataBit(GPIOC, GPIO_Pin_0 << i))
 						ir_pd_2_flag[i] = 1;
@@ -215,14 +196,15 @@ int main(void)
 			}
 			
 			/* Control Motor and Upper Gate */
+			/* Three infantries share the first 200 bullets */
 			if (global_supply_counter < 2)
 			{
-				if (!ir_pd_1_flag[1])
+				if (!ir_pd_1_flag[1] && !GPIO_ReadInputDataBit(GPIOC, GPIO_Pin_4))
 				{
 					Target_position = container_1;
 					CCR3_Val = CCR3_Open;
 				}
-				else if (!ir_pd_2_flag[1])
+				else if (!ir_pd_2_flag[1] && !GPIO_ReadInputDataBit(GPIOC, GPIO_Pin_5))
 				{
 					Target_position = container_2;
 					CCR3_Val = CCR3_Open;
@@ -230,16 +212,18 @@ int main(void)
 				else
 				{
 					CCR3_Val = CCR3_Close;
+					vibration_counter = 4;
 				}
 			}
+			/* Otherwise each infantry gets 100 bullets each time */
 			else
 			{
-				if (!ir_pd_1_flag[2])
+				if (!ir_pd_1_flag[2] && !GPIO_ReadInputDataBit(GPIOC, GPIO_Pin_4))
 				{
 					Target_position = container_1;
 					CCR3_Val = CCR3_Open;
 				}
-				else if (!ir_pd_2_flag[2])
+				else if (!ir_pd_2_flag[2] && !GPIO_ReadInputDataBit(GPIOC, GPIO_Pin_5))
 				{
 					Target_position = container_2;
 					CCR3_Val = CCR3_Open;
@@ -250,19 +234,34 @@ int main(void)
 				}
 			}
 #else
-//			if(!usart_buffer_pointer)
-//				printf("Target: %d, Current: %d \r\n", Target_position, Encoder);
+			if(!usart_buffer_pointer)
+				printf("Target: %d, Current: %d \r\n", Target_position, Encoder);
 #endif			
 //			printf("GPIO read: %d \r\n", GPIO_ReadInputDataBit(GPIOC, GPIO_Pin_5));
+			if (CCR3_Val != CCR3_Close)
+				if (++counter_2s >= 40)
+				{
+					counter_2s = 0;
+					if (CCR4_Val == CCR4_1)
+						CCR4_Val = CCR4_2;
+					else
+						CCR4_Val = CCR4_1;
+				}
 			
-			if (++counter_1s >= 40)
+			/* The following runs every 500ms */
+			if (++counter_200ms >= 4)
 			{
-				counter_1s = 0;
-				if (CCR4_Val == CCR4_1)
-					CCR4_Val = CCR4_2;
-				else
-					CCR4_Val = CCR4_1;
+				/* To prevent bullets from piping on the 4-way tube */
+				if (vibration_counter > 0)
+				{
+					vibration_counter--;
+					if (vibration_counter % 2)
+						Target_position -= 50;
+					else
+						Target_position += 50;
+				}
 			}
+				
 			/* Update Servo PWM Outputs */
 			TIM_SetCompare1(TIM3, CCR1_Val);
 			TIM_SetCompare2(TIM3, CCR2_Val);
@@ -279,19 +278,6 @@ int main(void)
 			usart_buffer_pointer = 0;
 		}
 	}
-}
-
-/*******************************************************************************
-* Function Name  : Delay
-* Description    : Delay Time
-* Input          : - nCount: Delay Time
-* Output         : None
-* Return         : None
-* Attention		 : None
-*******************************************************************************/
-void  Delay(uint32_t nCount)
-{
-  for(; nCount != 0; nCount--);
 }
 
 /**
@@ -350,10 +336,10 @@ void GPIO_Config(void)
 	GPIO_InitStructure.GPIO_PuPd = GPIO_PuPd_UP;	
 	GPIO_Init(GPIOC, &GPIO_InitStructure);	
 	
-	/* Configure PB10,PB11 in output open drain mode */
+	/* Configure PB10,PB11 in output push-pull mode */
 	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_10 | GPIO_Pin_11;
 	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_OUT;
-	GPIO_InitStructure.GPIO_OType = GPIO_OType_OD;
+	GPIO_InitStructure.GPIO_OType = GPIO_OType_PP;
 	GPIO_InitStructure.GPIO_Speed = GPIO_Speed_100MHz;
 	GPIO_InitStructure.GPIO_PuPd = GPIO_PuPd_UP;
 	GPIO_Init(GPIOB, &GPIO_InitStructure);
