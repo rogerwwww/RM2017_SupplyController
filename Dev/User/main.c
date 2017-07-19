@@ -80,6 +80,8 @@ int main(void)
 	uint32_t counter_2s = 0;
   uint32_t counter_200ms = 0;
 	uint32_t vibration_counter = 0;
+	//If the container is not full after some time, the motor will perform anti-piping method.
+	uint32_t anti_piping_counter = 0;
 	uint32_t i = 0;
 
 	/* Systick Timer Config */
@@ -180,7 +182,8 @@ int main(void)
 							CCR2_Val = CCR2_Open;
 					}
 				}
-				else if(container_counter[i]++ == 20)
+				//Open container for 1.5s
+				else if(container_counter[i]++ == 30)
 				{
 					GPIO_ResetBits(GPIOB, GPIO_Pin_10 << i);
 					//close container here
@@ -189,7 +192,7 @@ int main(void)
 					else
 						CCR2_Val = CCR2_Close;
 				}
-				else if(!GPIO_ReadInputDataBit(GPIOC, GPIO_Pin_4 << i) && container_counter[i] > 20)
+				else if(!GPIO_ReadInputDataBit(GPIOC, GPIO_Pin_4 << i) && container_counter[i] > 30)
 				{
 					container_counter[i] = 0;
 				}
@@ -199,37 +202,109 @@ int main(void)
 			/* Three infantries share the first 200 bullets */
 			if (global_supply_counter < 2)
 			{
-				if (!ir_pd_1_flag[1] && !GPIO_ReadInputDataBit(GPIOC, GPIO_Pin_4))
-				{
+				if (!ir_pd_1_flag[1] && !GPIO_ReadInputDataBit(GPIOC, GPIO_Pin_4) && CCR1_Val == CCR1_Close)
+				{					
+					if (Target_position >= container_2 - 100 && Target_position <=  container_2 + 100)
+						anti_piping_counter = 0;
+					
+					if (anti_piping_counter == 0)
+						anti_piping_counter++;
+					else
+					{
+						//Delay 2s
+						if (++anti_piping_counter == 40)
+						{
+							anti_piping_counter = 0;
+							vibration_counter = 4;
+						}
+					}
 					Target_position = container_1;
 					CCR3_Val = CCR3_Open;
 				}
-				else if (!ir_pd_2_flag[1] && !GPIO_ReadInputDataBit(GPIOC, GPIO_Pin_5))
+				else if (!ir_pd_2_flag[1] && !GPIO_ReadInputDataBit(GPIOC, GPIO_Pin_5) && CCR2_Val == CCR2_Close)
 				{
+					if (Target_position >= container_1 - 100 && Target_position <=  container_1 + 100)
+						anti_piping_counter = 0;
+					
+					if (anti_piping_counter == 0)
+						anti_piping_counter++;
+					else
+					{
+						//Delay 2s
+						if (++anti_piping_counter == 40)
+						{
+							anti_piping_counter = 0;
+							vibration_counter = 4;
+						}
+					}
 					Target_position = container_2;
 					CCR3_Val = CCR3_Open;
 				}
 				else
 				{
+					if (CCR3_Val == CCR3_Open)
+					{
+						if (vibration_counter % 2)
+							vibration_counter = 3;
+						else
+							vibration_counter = 4;
+						anti_piping_counter = 0;
+					}
 					CCR3_Val = CCR3_Close;
-					vibration_counter = 4;
 				}
 			}
 			/* Otherwise each infantry gets 100 bullets each time */
 			else
 			{
-				if (!ir_pd_1_flag[2] && !GPIO_ReadInputDataBit(GPIOC, GPIO_Pin_4))
+				if (!ir_pd_1_flag[2] && !GPIO_ReadInputDataBit(GPIOC, GPIO_Pin_4) && CCR1_Val == CCR1_Close)
 				{
+					if (Target_position >= container_2 - 100 && Target_position <=  container_2 + 100)
+						anti_piping_counter = 0;
+					
+					if (anti_piping_counter == 0)
+						anti_piping_counter++;
+					else
+					{
+						//Delay 2s
+						if (++anti_piping_counter == 40)
+						{
+							anti_piping_counter = 0;
+							vibration_counter = 4;
+						}
+					}
 					Target_position = container_1;
 					CCR3_Val = CCR3_Open;
 				}
-				else if (!ir_pd_2_flag[2] && !GPIO_ReadInputDataBit(GPIOC, GPIO_Pin_5))
+				else if (!ir_pd_2_flag[2] && !GPIO_ReadInputDataBit(GPIOC, GPIO_Pin_5) && CCR2_Val == CCR2_Close)
 				{
+					if (Target_position >= container_1 - 100 && Target_position <=  container_1 + 100)
+						anti_piping_counter = 0;
+					
+					if (anti_piping_counter == 0)
+						anti_piping_counter++;
+					else
+					{
+						//Delay 2s
+						if (++anti_piping_counter == 40)
+						{
+							anti_piping_counter = 0;
+							vibration_counter = 4;
+						}
+					}
 					Target_position = container_2;
 					CCR3_Val = CCR3_Open;
 				}
 				else
 				{
+					if (CCR3_Val == CCR3_Open)
+					{
+						if (vibration_counter % 2)
+							vibration_counter = 3;
+						else
+							vibration_counter = 4;
+						
+						anti_piping_counter = 0;
+					}			
 					CCR3_Val = CCR3_Close;
 				}
 			}
@@ -256,9 +331,9 @@ int main(void)
 				{
 					vibration_counter--;
 					if (vibration_counter % 2)
-						Target_position -= 50;
+						Target_position -= 100;
 					else
-						Target_position += 50;
+						Target_position += 100;
 				}
 			}
 				
