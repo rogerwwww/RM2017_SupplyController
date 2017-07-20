@@ -1,28 +1,13 @@
 #include "control.h"	
-  /**************************************************************************
-作者：平衡小车之家
-我的淘宝小店：http://shop114407458.taobao.com/
-**************************************************************************/
-int Target_position=10000;    //初始值是10000，目标值是10000
-//int TIM4_IRQHandler(void)  
-//{    
-//	if(TIM4->SR&0X0001)//10ms定时中断
-//	{   
-//		  TIM4->SR&=~(1<<0);                                         //===清除定时器1中断标志位		 
-//		  Encoder=Read_Encoder(2);                                  //===读取编码器的位置数据 初始值是10000，详见encoder.c 和encoder.h
-//  		Led_Flash(100);                                           //===LED闪烁;指示单片机正常运行	
-//		  Moto1=Position_PID(Encoder,Target_position);              //===位置PID控制器
-//		  Xianfu_Pwm();                                             //===PWM限幅
-//    	Set_Pwm(Moto1);                                          //===赋值给PWM寄存器  
-//	}       	
-//	 return 0;	  
-//} 
 
-/**************************************************************************
-函数功能：赋值给PWM寄存器
-入口参数：PWM
-返回  值：无
-**************************************************************************/
+extern int Target_position;
+
+/**
+  * @brief  Set the motor PWM output and two digital signals that controls
+	*         the direction of the motor.
+  * @param  moto1: the PID result for motor control.
+  * @retval None
+  */
 void Set_Pwm(int moto1)
 {
 	if(moto1 < 0)
@@ -38,23 +23,24 @@ void Set_Pwm(int moto1)
 	TIM_SetCompare1(TIM4, myabs(moto1));
 }
 
-/**************************************************************************
-函数功能：限制PWM赋值 
-入口参数：无
-返回  值：无
-**************************************************************************/
+/**
+  * @brief  Restrict the PWM pulse width within the maximum value.
+  * @param  None
+  * @retval None
+  */
 void Xianfu_Pwm(void)
 {	
-	int Amplitude=8000;    //===PWM满幅是8400 限制在8000
+	//The maximum value of PWM width is 8400, and we restrict it within 8000
+	int Amplitude=8000;    
   if(Moto1<-Amplitude) Moto1=-Amplitude;	
 	if(Moto1>Amplitude)  Moto1=Amplitude;	
 }
 
-/**************************************************************************
-函数功能：绝对值函数
-入口参数：int
-返回  值：unsigned int
-**************************************************************************/
+/**
+  * @brief  Calculate absolute value.
+  * @param  a: input int.
+  * @retval Absolute value of a.
+  */
 int myabs(int a)
 { 		   
 	  int temp;
@@ -73,6 +59,16 @@ e(k-1)代表上一次的偏差
 ∑e(k)代表e(k)以及之前的偏差的累积和;其中k为1,2,,k;
 pwm代表输出
 **************************************************************************/
+/**
+  * @brief  Position PID controller.
+  * @note   pwm=Kp*e(k)+Ki*∑e(k)+Kd[e（k）-e(k-1)]
+  * @note   e(k) stands for the difference of this sampling
+  * @note   e(k-1) stands for the difference of last sampling
+  * @note   ∑e(k) stands for the sum of all previous differences.
+  * @param  Encoder: the current position read from encoder.
+  * @param  Target: target position of the PID controller.
+  * @retval PWM value for motor output.
+  */
 int Position_PID (int Encoder,int Target)
 { 	
 	 float Position_KP=120,Position_KI=0.1,Position_KD=500;

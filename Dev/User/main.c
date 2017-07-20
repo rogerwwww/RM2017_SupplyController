@@ -38,9 +38,9 @@ uint32_t global_supply_counter = 0;
 
 uint32_t Encoder = 0;
 int Moto1 = 0;
-extern int Target_position;
-const int container_1 = 10000;
-const int container_2 = 10220;
+int Target_position = COUNTER_RESET;
+const int container_1 = COUNTER_RESET;
+const int container_2 = COUNTER_RESET + 220;
 
 uint8_t ir_pd_1_flag[4] = {0};
 uint8_t ir_pd_2_flag[4] = {0};
@@ -323,7 +323,7 @@ int main(void)
 						CCR4_Val = CCR4_1;
 				}
 			
-			/* The following runs every 500ms */
+			/* The following runs every 200ms */
 			if (++counter_200ms >= 4)
 			{
 				/* To prevent bullets from piping on the 4-way tube */

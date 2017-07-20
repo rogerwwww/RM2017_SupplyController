@@ -1,13 +1,9 @@
 #include "encoder.h"
-  /**************************************************************************
-作者：平衡小车之家
-我的淘宝小店：http://shop114407458.taobao.com/
-**************************************************************************/
-/**************************************************************************
-函数功能：把TIM2初始化为编码器接口模式
-入口参数：无
-返回  值：无
-**************************************************************************/
+/**
+  * @brief  Configure TIM2 into QEI encoder mode.
+  * @param  None
+  * @retval None
+  */
 void Encoder_Init_TIM2(void)
 {
   TIM_TimeBaseInitTypeDef TIM_TimeBaseStructure;  
@@ -57,39 +53,18 @@ void Encoder_Init_TIM2(void)
   TIM_ClearFlag(TIM2, TIM_FLAG_Update);
   TIM_ITConfig(TIM2, TIM_IT_Update, ENABLE);
   //Reset counter
-  TIM2->CNT = 10000;
+  TIM2->CNT = COUNTER_RESET;
   
   // ENC_Clear_Speed_Buffer();
   
   TIM_Cmd(TIM2, ENABLE);
 }
-/**************************************************************************
-函数功能：把TIM4初始化为编码器接口模式
-入口参数：无
-返回  值：无
-**************************************************************************/
-//void Encoder_Init_TIM4(void)
-//{
-//	RCC->APB1ENR|=1<<2;     //TIM4时钟使能
-//	RCC->APB2ENR|=1<<3;    //使能PORTb时钟
-//	//BSRRL changed from CRL
-//	GPIOB->BSRRL&=0X00FFFFFF;//PB6 PB7
-//	GPIOB->BSRRL|=0X44000000;//浮空输入
-//	/* 把定时器初始化为编码器模式 */ 
-//	TIM4->PSC = 0x0;//预分频器
-//	TIM4->ARR = ENCODER_TIM_PERIOD-1;//设定计数器自动重装值 
-//  TIM4->CCMR1 |= 1<<0;          //输入模式，IC1FP1映射到TI1上
-//  TIM4->CCMR1 |= 1<<8;          //输入模式，IC2FP2映射到TI2上
-//  TIM4->CCER |= 0<<1;           //IC1不反向
-//  TIM4->CCER |= 0<<5;           //IC2不反向
-//	TIM4->SMCR |= 3<<0;	          //SMS='011' 所有的输入均在上升沿和下降沿有效
-//	TIM4->CR1 |= 0x01;    //CEN=1，使能定时器
-//}
-/**************************************************************************
-函数功能：单位时间读取编码器计数
-入口参数：定时器
-返回  值：速度值
-**************************************************************************/
+
+/**
+  * @brief  Read the counter number of an encoder.
+  * @param  TIMX : the timer number, varies from 2 to 4.
+  * @retval Counter number of the target encoder.
+  */
 int Read_Encoder(uint8_t TIMX)
 {
    int Encoder_TIM;    

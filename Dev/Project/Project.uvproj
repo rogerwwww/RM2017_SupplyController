@@ -374,7 +374,7 @@
               <MiscControls></MiscControls>
               <Define>STM32F4XX, USE_STDPERIPH_DRIVER, TPP_RELEASE</Define>
               <Undefine></Undefine>
-              <IncludePath>..\User;..\Libraries\STM32F4xx_StdPeriph_Driver\inc;..\Libraries\CMSIS\Include;..\Libraries\CMSIS\Device\ST\STM32F4xx\Include;..\..\_Common;..\MotorEncoder\BALANCE\CONTROL;..\MotorEncoder\HARDWARE\MOTOR;..\MotorEncoder\HARDWARE\ENCODER;..\MotorEncoder\HARDWARE\TIMER</IncludePath>
+              <IncludePath>..\User;..\Libraries\STM32F4xx_StdPeriph_Driver\inc;..\Libraries\CMSIS\Include;..\Libraries\CMSIS\Device\ST\STM32F4xx\Include;..\..\_Common;..\MotorEncoder\BALANCE\CONTROL;..\MotorEncoder\HARDWARE\MOTOR;..\MotorEncoder\HARDWARE\ENCODER</IncludePath>
             </VariousControls>
           </Cads>
           <Aads>
@@ -517,11 +517,6 @@
               <FileName>motor.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\MotorEncoder\HARDWARE\MOTOR\motor.c</FilePath>
-            </File>
-            <File>
-              <FileName>timer.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\MotorEncoder\HARDWARE\TIMER\timer.c</FilePath>
             </File>
             <File>
               <FileName>encoder.c</FileName>
