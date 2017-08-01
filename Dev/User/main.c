@@ -56,13 +56,24 @@ uint16_t CCR1_Val = CCR1_Close;
 const uint16_t CCR2_Open = 950;
 const uint16_t CCR2_Close = 750;
 uint16_t CCR2_Val = CCR2_Close;
-const uint16_t CCR3_Open = 520;
-const uint16_t CCR3_Close = 250;
+const uint16_t CCR3_Open = 570;
+const uint16_t CCR3_Close = 320;
 uint16_t CCR3_Val = CCR3_Open;
 const uint16_t CCR4_1 = 500;
 const uint16_t CCR4_2 = 1000;
 uint16_t CCR4_Val = CCR4_1;
 uint8_t CCR4_Count_up_flag = 1;
+
+/* FSM state counter 
+ * 0 - first 200 bullets, supply container 1
+ * 1 - first 200 bullets, supply container 2
+ * 2 - first 200 bullets, supply none
+ * 3 - bullets after first time, supply container 1
+ * 4 - bullets after first time, supply container 2
+ * 5 - bullets after first time, supply none
+*/
+uint8_t FSM_state = 0;
+uint8_t FSM_last_state = 0;
 
 /* Private function prototypes -----------------------------------------------*/
 void  Delay(uint32_t nCount);
@@ -172,6 +183,13 @@ int main(void)
 					if (GPIO_ReadInputDataBit(GPIOC, GPIO_Pin_4 << i))// HIGH valid here
 					{
 						container_counter[i]++;
+					}
+				}
+				//Check the SW pin status after 200ms
+				else if (container_counter[i]++ == 4)
+				{
+					if (GPIO_ReadInputDataBit(GPIOC, GPIO_Pin_4 << i))
+					{
 						GPIO_SetBits(GPIOB, GPIO_Pin_10 << i);
 						//whenever the supply is taken once, the counter plus 1
 						global_supply_counter++;
@@ -181,9 +199,11 @@ int main(void)
 						else 
 							CCR2_Val = CCR2_Open;
 					}
+					else
+						container_counter[i] = 0;
 				}
 				//Open container for 1.5s
-				else if(container_counter[i]++ == 30)
+				else if(container_counter[i] == 30 + 4)
 				{
 					GPIO_ResetBits(GPIOB, GPIO_Pin_10 << i);
 					//close container here
@@ -192,74 +212,75 @@ int main(void)
 					else
 						CCR2_Val = CCR2_Close;
 				}
-				else if(!GPIO_ReadInputDataBit(GPIOC, GPIO_Pin_4 << i) && container_counter[i] > 30)
+				else if(!GPIO_ReadInputDataBit(GPIOC, GPIO_Pin_4 << i) && container_counter[i] > 30 + 4)
 				{
 					container_counter[i] = 0;
 				}
 			}
 			
-			/* Control Motor and Upper Gate */
+			/* Control the state of FSM */
 			/* Three infantries share the first 200 bullets */
 			if (global_supply_counter < 2)
 			{
-				if (!ir_pd_1_flag[1] && !GPIO_ReadInputDataBit(GPIOC, GPIO_Pin_4) && CCR1_Val == CCR1_Close)
-				{					
-					if (Target_position >= container_2 - 100 && Target_position <=  container_2 + 100)
-						anti_piping_counter = 0;
-					
-					if (anti_piping_counter == 0)
-						anti_piping_counter++;
-					else
-					{
-						//Delay 2s
-						if (++anti_piping_counter == 40)
-						{
-							anti_piping_counter = 0;
-							vibration_counter = 4;
-						}
-					}
-					Target_position = container_1;
-					CCR3_Val = CCR3_Open;
-				}
-				else if (!ir_pd_2_flag[1] && !GPIO_ReadInputDataBit(GPIOC, GPIO_Pin_5) && CCR2_Val == CCR2_Close)
+				if ((//!ir_pd_1_flag[0] || 
+					!ir_pd_1_flag[1])
+					&& !GPIO_ReadInputDataBit(GPIOC, GPIO_Pin_4) 
+					&& CCR1_Val == CCR1_Close)
 				{
-					if (Target_position >= container_1 - 100 && Target_position <=  container_1 + 100)
-						anti_piping_counter = 0;
-					
-					if (anti_piping_counter == 0)
-						anti_piping_counter++;
-					else
-					{
-						//Delay 2s
-						if (++anti_piping_counter == 40)
-						{
-							anti_piping_counter = 0;
-							vibration_counter = 4;
-						}
-					}
-					Target_position = container_2;
-					CCR3_Val = CCR3_Open;
+					FSM_state = 0;
+				}
+				else if ((!ir_pd_2_flag[0] || !ir_pd_2_flag[1])
+					&& !GPIO_ReadInputDataBit(GPIOC, GPIO_Pin_5)
+					&& CCR2_Val == CCR2_Close)
+				{
+					FSM_state = 1;
 				}
 				else
 				{
-					if (CCR3_Val == CCR3_Open)
-					{
-						if (vibration_counter % 2)
-							vibration_counter = 3;
-						else
-							vibration_counter = 4;
-						anti_piping_counter = 0;
-					}
-					CCR3_Val = CCR3_Close;
+					FSM_state = 2;
 				}
 			}
 			/* Otherwise each infantry gets 100 bullets each time */
 			else
 			{
-				if (!ir_pd_1_flag[2] && !GPIO_ReadInputDataBit(GPIOC, GPIO_Pin_4) && CCR1_Val == CCR1_Close)
+				if ((//!ir_pd_1_flag[0] || 
+					!ir_pd_1_flag[1] || !ir_pd_1_flag[2])
+					&& !GPIO_ReadInputDataBit(GPIOC, GPIO_Pin_4)
+					&& CCR1_Val == CCR1_Close)
 				{
+					FSM_state = 3;
+				}
+				else if ((!ir_pd_2_flag[0] //|| !ir_pd_2_flag[1]
+					|| !ir_pd_2_flag[2])
+					&& !GPIO_ReadInputDataBit(GPIOC, GPIO_Pin_5)
+					&& CCR2_Val == CCR2_Close)
+				{
+					FSM_state = 4;
+				}
+				else
+				{
+					FSM_state = 5;
+				}
+			}
+			
+//			if (FSM_state == 0 && FSM_last_state == 1 
+//				&& ((!ir_pd_2_flag[0] || !ir_pd_2_flag[1])
+//					&& !GPIO_ReadInputDataBit(GPIOC, GPIO_Pin_5)
+//					&& CCR2_Val == CCR2_Close))
+//				FSM_state = 1;
+			
+			FSM_last_state = FSM_state;
+			
+			/* Control Motor and Upper Gate via FSM */
+			switch(FSM_state)
+			{
+				/* Supply container 1 */
+				case 0:
+				case 3:
 					if (Target_position >= container_2 - 100 && Target_position <=  container_2 + 100)
+					{
 						anti_piping_counter = 0;
+					}
 					
 					if (anti_piping_counter == 0)
 						anti_piping_counter++;
@@ -269,14 +290,16 @@ int main(void)
 						if (++anti_piping_counter == 40)
 						{
 							anti_piping_counter = 0;
-							vibration_counter = 4;
+							vibration_counter = 8;
 						}
 					}
 					Target_position = container_1;
 					CCR3_Val = CCR3_Open;
-				}
-				else if (!ir_pd_2_flag[2] && !GPIO_ReadInputDataBit(GPIOC, GPIO_Pin_5) && CCR2_Val == CCR2_Close)
-				{
+					break;
+					
+				/* Supply container 2 */
+				case 1:
+				case 4:
 					if (Target_position >= container_1 - 100 && Target_position <=  container_1 + 100)
 						anti_piping_counter = 0;
 					
@@ -288,25 +311,24 @@ int main(void)
 						if (++anti_piping_counter == 40)
 						{
 							anti_piping_counter = 0;
-							vibration_counter = 4;
+							vibration_counter = 8;
 						}
 					}
 					Target_position = container_2;
 					CCR3_Val = CCR3_Open;
-				}
-				else
-				{
+					break;
+					
+				/* Supply none */
+				default:
 					if (CCR3_Val == CCR3_Open)
 					{
 						if (vibration_counter % 2)
-							vibration_counter = 3;
+							vibration_counter = 7;
 						else
-							vibration_counter = 4;
-						
+							vibration_counter = 8;
 						anti_piping_counter = 0;
-					}			
-					CCR3_Val = CCR3_Close;
-				}
+					}
+					CCR3_Val = CCR3_Close;					
 			}
 #else
 			if(!usart_buffer_pointer)
@@ -378,7 +400,7 @@ void GPIO_Config(void)
   /* Configure PA2-PA5 in input mode */
 	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_2 | GPIO_Pin_3 | GPIO_Pin_4 | GPIO_Pin_5;
 	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_IN;
-	GPIO_InitStructure.GPIO_OType = GPIO_OType_PP;
+	GPIO_InitStructure.GPIO_OType = GPIO_OType_OD;
 	GPIO_InitStructure.GPIO_Speed = GPIO_Speed_100MHz;
 	GPIO_InitStructure.GPIO_PuPd = GPIO_PuPd_UP;	
 	GPIO_Init(GPIOA, &GPIO_InitStructure);
@@ -392,7 +414,7 @@ void GPIO_Config(void)
   /* Configure PC0-PC3 in input mode */
 	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_0 | GPIO_Pin_1 | GPIO_Pin_2 | GPIO_Pin_3;
 	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_IN;
-	GPIO_InitStructure.GPIO_OType = GPIO_OType_PP;
+	GPIO_InitStructure.GPIO_OType = GPIO_OType_OD;
 	GPIO_InitStructure.GPIO_Speed = GPIO_Speed_100MHz;
 	GPIO_InitStructure.GPIO_PuPd = GPIO_PuPd_UP;	
 	GPIO_Init(GPIOC, &GPIO_InitStructure);	
@@ -406,7 +428,7 @@ void GPIO_Config(void)
 	/* Configure PC4,PC5 in input mode */
 	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_4 | GPIO_Pin_5;
 	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_IN;
-	GPIO_InitStructure.GPIO_OType = GPIO_OType_PP;
+	GPIO_InitStructure.GPIO_OType = GPIO_OType_OD;
 	GPIO_InitStructure.GPIO_Speed = GPIO_Speed_100MHz;
 	GPIO_InitStructure.GPIO_PuPd = GPIO_PuPd_UP;	
 	GPIO_Init(GPIOC, &GPIO_InitStructure);	
