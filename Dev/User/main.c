@@ -219,55 +219,64 @@ int main(void)
 			}
 			
 			/* Control the state of FSM */
-			/* Three infantries share the first 200 bullets */
-			if (global_supply_counter < 2)
+			switch(FSM_last_state)
 			{
-				if ((//!ir_pd_1_flag[0] || 
-					!ir_pd_1_flag[1])
-					&& !GPIO_ReadInputDataBit(GPIOC, GPIO_Pin_4) 
-					&& CCR1_Val == CCR1_Close)
-				{
-					FSM_state = 0;
-				}
-				else if ((!ir_pd_2_flag[0] || !ir_pd_2_flag[1])
-					&& !GPIO_ReadInputDataBit(GPIOC, GPIO_Pin_5)
-					&& CCR2_Val == CCR2_Close)
-				{
-					FSM_state = 1;
-				}
-				else
-				{
-					FSM_state = 2;
-				}
+				case 1:
+					if ((!ir_pd_2_flag[0] || !ir_pd_2_flag[1])
+						&& !GPIO_ReadInputDataBit(GPIOC, GPIO_Pin_5)
+						&& CCR2_Val == CCR2_Close
+						&& global_supply_counter == 1
+					)
+					{
+						FSM_state = 1;
+						break;
+					}
+				default:
+					/* Three infantries share the first 200 bullets */
+					if (global_supply_counter < 2)
+					{
+						if ((//!ir_pd_1_flag[0] || 
+							!ir_pd_1_flag[1])
+							&& !GPIO_ReadInputDataBit(GPIOC, GPIO_Pin_4) 
+							&& CCR1_Val == CCR1_Close)
+						{
+							FSM_state = 0;
+						}
+						else if ((!ir_pd_2_flag[0] || !ir_pd_2_flag[1])
+							&& !GPIO_ReadInputDataBit(GPIOC, GPIO_Pin_5)
+							&& CCR2_Val == CCR2_Close)
+						{
+							FSM_state = 1;
+						}
+						else
+						{
+							FSM_state = 2;
+						}
+					}
+					/* Otherwise each infantry gets 100 bullets each time */
+					else
+					{
+						if ((//!ir_pd_1_flag[0] || 
+							!ir_pd_1_flag[1] || !ir_pd_1_flag[2])
+							&& !GPIO_ReadInputDataBit(GPIOC, GPIO_Pin_4)
+							&& CCR1_Val == CCR1_Close)
+						{
+							FSM_state = 3;
+						}
+						else if ((!ir_pd_2_flag[0] //|| !ir_pd_2_flag[1]
+							|| !ir_pd_2_flag[2])
+							&& !GPIO_ReadInputDataBit(GPIOC, GPIO_Pin_5)
+							&& CCR2_Val == CCR2_Close)
+						{
+							FSM_state = 4;
+						}
+						else
+						{
+							FSM_state = 5;
+						}
+					}
 			}
-			/* Otherwise each infantry gets 100 bullets each time */
-			else
-			{
-				if ((//!ir_pd_1_flag[0] || 
-					!ir_pd_1_flag[1] || !ir_pd_1_flag[2])
-					&& !GPIO_ReadInputDataBit(GPIOC, GPIO_Pin_4)
-					&& CCR1_Val == CCR1_Close)
-				{
-					FSM_state = 3;
-				}
-				else if ((!ir_pd_2_flag[0] //|| !ir_pd_2_flag[1]
-					|| !ir_pd_2_flag[2])
-					&& !GPIO_ReadInputDataBit(GPIOC, GPIO_Pin_5)
-					&& CCR2_Val == CCR2_Close)
-				{
-					FSM_state = 4;
-				}
-				else
-				{
-					FSM_state = 5;
-				}
-			}
-			
-//			if (FSM_state == 0 && FSM_last_state == 1 
-//				&& ((!ir_pd_2_flag[0] || !ir_pd_2_flag[1])
-//					&& !GPIO_ReadInputDataBit(GPIOC, GPIO_Pin_5)
-//					&& CCR2_Val == CCR2_Close))
-//				FSM_state = 1;
+
 			
 			FSM_last_state = FSM_state;
 			
